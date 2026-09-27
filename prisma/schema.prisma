@@ -1,0 +1,199 @@
+// FYP Management System — Database Schema
+// Provider: PostgreSQL (Neon / Vercel Postgres / Supabase / Railway all work)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+model Faculty {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  isExternal  Boolean  @default(false) // true = external examiner (not a supervisor)
+  department  String?
+  createdAt   DateTime @default(now())
+
+  supervisedProjects   Project[]          @relation("MainSupervisor")
+  internalAssignments  RoomAllocation[]   @relation("InternalExaminer")
+  externalAssignments  RoomAllocation[]   @relation("ExternalExaminer")
+  committeeMemberships CommitteeMember[]
+}
+
+model Student {
+  id            String   @id @default(cuid())
+  studentId     String   @unique // university roll number — used for de-duplication
+  name          String
+  email         String?
+  contactNumber String?
+  program       String?
+  semester      String?
+  feeStatus     String   @default("Pending") // Paid / Pending / Waived
+  groupId       String?
+  group         Group?   @relation(fields: [groupId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Groups & Projects
+// ---------------------------------------------------------------------------
+
+model Group {
+  id          String    @id @default(cuid())
+  groupNumber String    @unique
+  fypType     String    @default("FYP-1") // FYP-1 / FYP-2
+  session     String? // e.g. "Fall 2026"
+  students    Student[]
+  project     Project?
+  createdAt   DateTime  @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  fypType     String   @default("FYP-1")
+  session     String?
+  status      String   @default("Active") // Active / Approved / Completed / Withdrawn
+
+  groupId String @unique
+  group   Group  @relation(fields: [groupId], references: [id])
+
+  // Only the main supervisor is required at creation/import time (Req. 24/29).
+  supervisorId String?
+  supervisor   Faculty? @relation("MainSupervisor", fields: [supervisorId], references: [id])
+
+  allocations ProjectAllocation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Defence Rooms & Scheduling
+// ---------------------------------------------------------------------------
+
+model DefenceRoom {
+  id       String @id @default(cuid())
+  name     String @unique // "Room 101", "Lab 1", "Seminar Hall"
+  capacity Int    @default(15)
+
+  allocations RoomAllocation[]
+  createdAt   DateTime @default(now())
+}
+
+// One DefenceSchedule groups a set of room allocations under one planning event
+// e.g. "FYP-1 Proposal Defence — Fall 2026"
+model DefenceSchedule {
+  id        String   @id @default(cuid())
+  title     String
+  fypType   String   @default("FYP-1")
+  session   String?
+  status    String   @default("Draft") // Draft / Finalized
+  createdAt DateTime @default(now())
+
+  roomAllocations RoomAllocation[]
+}
+
+// A room's assignment within one defence schedule: which projects, which
+// internal/external examiner, and when. The internal examiner defaults to
+// the room's associated supervisor but can be reassigned (Req. 23).
+model RoomAllocation {
+  id String @id @default(cuid())
+
+  defenceScheduleId String
+  defenceSchedule   DefenceSchedule @relation(fields: [defenceScheduleId], references: [id], onDelete: Cascade)
+
+  roomId String
+  room   DefenceRoom @relation(fields: [roomId], references: [id])
+
+  internalExaminerId String?
+  internalExaminer   Faculty? @relation("InternalExaminer", fields: [internalExaminerId], references: [id])
+
+  externalExaminerId String?
+  externalExaminer   Faculty? @relation("ExternalExaminer", fields: [externalExaminerId], references: [id])
+
+  date      DateTime?
+  startTime String? // "09:00"
+  endTime   String? // "13:00"
+  status    String  @default("Scheduled") // Scheduled / In Progress / Completed / Cancelled
+
+  projects   ProjectAllocation[]
+  committee  CommitteeMember[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model CommitteeMember {
+  id               String         @id @default(cuid())
+  roomAllocationId String
+  roomAllocation   RoomAllocation @relation(fields: [roomAllocationId], references: [id], onDelete: Cascade)
+  facultyId        String
+  faculty          Faculty        @relation(fields: [facultyId], references: [id])
+  role             String         @default("Committee Member")
+}
+
+// Join table: which projects sit in which room allocation (capacity-checked).
+model ProjectAllocation {
+  id               String         @id @default(cuid())
+  projectId        String
+  project          Project        @relation(fields: [projectId], references: [id])
+  roomAllocationId String
+  roomAllocation   RoomAllocation @relation(fields: [roomAllocationId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([projectId, roomAllocationId])
+}
+
+// ---------------------------------------------------------------------------
+// CSV Import
+// ---------------------------------------------------------------------------
+
+model ImportBatch {
+  id              String   @id @default(cuid())
+  filename        String
+  columnMapping   Json // { "Student ID": "studentId", ... }
+  totalRecords    Int      @default(0)
+  successCount    Int      @default(0)
+  updatedCount    Int      @default(0)
+  duplicateCount  Int      @default(0)
+  failedCount     Int      @default(0)
+  status          String   @default("Pending") // Pending / Confirmed / Cancelled
+  createdAt       DateTime @default(now())
+
+  records ImportRecord[]
+}
+
+model ImportRecord {
+  id        String      @id @default(cuid())
+  batchId   String
+  batch     ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  rowNumber Int
+  status    String // NEW / EXISTING / DUPLICATE / INVALID
+  studentId String?
+  rawData   Json
+  errors    Json? // list of validation error strings
+}
+
+// ---------------------------------------------------------------------------
+// Audit History (Req. 25 — preserve prior assignment when changed after finalization)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String // "RoomAllocation", "Project", etc.
+  entityId   String
+  action     String // "CREATE" / "UPDATE" / "FINALIZE"
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+}

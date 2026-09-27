@@ -1,0 +1,6 @@
+Student ID,Student Name,Email,Contact Number,Program,Semester,FYP Type,Group Number,Project Title,Project Description,Supervisor,Fee Status
+BSCS-21-001,Ahmed Raza,ahmed.raza@student.edu,03001234567,BS Computer Science,7,FYP-1,G-01,Smart Attendance System,A facial-recognition based attendance system for classrooms,Dr. Ayesha Khan,Paid
+BSCS-21-002,Fatima Noor,fatima.noor@student.edu,03007654321,BS Computer Science,7,FYP-1,G-01,Smart Attendance System,A facial-recognition based attendance system for classrooms,Dr. Ayesha Khan,Paid
+BSCS-21-010,Hassan Ali,hassan.ali@student.edu,03009988776,BS Software Engineering,7,FYP-1,G-02,Campus Navigation App,An indoor navigation app for the university campus,Dr. Bilal Ahmed,Pending
+BSCS-21-011,Zainab Sheikh,zainab.sheikh@student.edu,03001122334,BS Software Engineering,7,FYP-1,G-02,Campus Navigation App,An indoor navigation app for the university campus,Dr. Bilal Ahmed,Pending
+BSCS-21-020,,,,,,,,,,,

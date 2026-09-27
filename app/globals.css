@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-paper text-ink;
+    font-feature-settings: "tnum" 1;
+  }
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-line rounded-md;
+  }
+  .btn-primary {
+    @apply bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-white border border-line text-ink px-4 py-2 rounded-md text-sm font-medium hover:bg-accentSoft transition disabled:opacity-40;
+  }
+  .input {
+    @apply border border-line rounded-md px-3 py-2 text-sm w-full bg-white focus:outline-none focus:ring-2 focus:ring-accent;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+  .table-wrap {
+    @apply overflow-x-auto border border-line rounded-md;
+  }
+  table.data {
+    @apply w-full text-sm border-collapse;
+  }
+  table.data th {
+    @apply text-left px-3 py-2 bg-accentSoft text-ink font-semibold border-b border-line whitespace-nowrap;
+  }
+  table.data td {
+    @apply px-3 py-2 border-b border-line whitespace-nowrap;
+  }
+}
